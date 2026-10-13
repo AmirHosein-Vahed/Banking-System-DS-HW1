@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+data/
+logs/
+*.db
+*.db-*
+*.log
+banking.conf
+.DS_Store
+*.egg-info/
+dist/
+build/
