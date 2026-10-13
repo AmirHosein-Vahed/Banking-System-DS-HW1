@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Stress test</h1>
+<form method="post" action="/stress">
+  account <select name="account">
+    {% for a in ["A1001","A1002","A1003","A1004","A1005"] %}
+    <option value="{{a}}" {% if a==account %}selected{% endif %}>{{a}}</option>
+    {% endfor %}
+  </select>
+  amount <input type="number" name="amount" value="{{amount}}">
+  n <input type="number" name="n" value="{{n}}">
+  <button type="submit">Run</button>
+</form>
+{% if summary %}
+<div class="card"><pre>results: {{ summary }}</pre></div>
+{% endif %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Cluster status</h1>
+<table>
+<tr><th>Server</th><th>Reachable</th><th>Sample balance</th></tr>
+{% for srv, d in info.items() %}
+<tr><td>{{srv}}</td><td>{{d.reachable}}</td><td>{{d.sample_balance if 'sample_balance' in d else d.error}}</td></tr>
+{% endfor %}
+</table>
+<p>Crash/partition actions must be run at VM/host level (see README).</p>
