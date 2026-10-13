@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Dashboard</h1>
-<p>Servers: {{ servers|join(", ") }}</p>
-<div class="card">
-<table>
-<tr><th>Account</th><th>Balance</th></tr>
-{% for a,b in balances.items() %}
-<tr><td>{{a}}</td><td>{{b}}</td></tr>
-{% endfor %}
-</table>
+<p class="subtitle">Real-time account balances from banking servers.</p>
+<div class="grid">
+  {% for a,b in balances.items() %}
+  <div class="stat">
+    <small>{{ a }}</small>
+    <strong>{{ b }}</strong>
+  </div>
+  {% endfor %}
 </div>
-
+<div class="card">
+  <p><strong>Servers:</strong> {{ servers|join(", ") }}</p>
+</div>
 {% endblock %}

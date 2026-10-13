@@ -1,27 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Operations</h1>
+<p class="subtitle">Run balance, deposit, and withdraw requests.</p>
+<div class="card">
 <form method="post" action="/ops">
-  <select name="action">
-    <option value="balance">balance</option>
-    <option value="deposit">deposit</option>
-    <option value="withdraw">withdraw</option>
-  </select>
-  <select name="account">
-    {% for a in ["A1001","A1002","A1003","A1004","A1005"] %}
-    <option value="{{a}}">{{a}}</option>
-    {% endfor %}
-  </select>
-  <input type="number" name="amount" value="0" min="0">
-  <select name="server">
-    {% for s in servers %}
-    <option value="{{s}}" {% if s==default_server %}selected{% endif %}>{{s}}</option>
-    {% endfor %}
-  </select>
-  <button type="submit">Run</button>
+  <div class="grid">
+    <div>
+      <label>Action</label><br>
+      <select name="action">
+        <option value="balance">balance</option>
+        <option value="deposit">deposit</option>
+        <option value="withdraw">withdraw</option>
+      </select>
+    </div>
+    <div>
+      <label>Account</label><br>
+      <select name="account">
+        {% for a in ["A1001","A1002","A1003","A1004","A1005"] %}
+        <option value="{{a}}">{{a}}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Amount</label><br>
+      <input type="number" name="amount" value="0" min="0">
+    </div>
+    <div>
+      <label>Server</label><br>
+      <select name="server">
+        {% for s in servers %}
+        <option value="{{s}}" {% if s==default_server %}selected{% endif %}>{{s}}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <br>
+  <button type="submit">Run Request</button>
 </form>
+</div>
 {% if resp %}
-<div class="card"><pre>{{ resp|tojson(indent=2) }}</pre></div>
+<div class="card">
+  <pre>{{ resp|tojson(indent=2) }}</pre>
+</div>
 {% endif %}
-
 {% endblock %}

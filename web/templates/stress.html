@@ -1,18 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Stress test</h1>
+<h1>Stress Test</h1>
+<p class="subtitle">Launch concurrent withdrawals to verify correctness.</p>
+<div class="card">
 <form method="post" action="/stress">
-  account <select name="account">
-    {% for a in ["A1001","A1002","A1003","A1004","A1005"] %}
-    <option value="{{a}}" {% if a==account %}selected{% endif %}>{{a}}</option>
-    {% endfor %}
-  </select>
-  amount <input type="number" name="amount" value="{{amount}}">
-  n <input type="number" name="n" value="{{n}}">
-  <button type="submit">Run</button>
+  <div class="grid">
+    <div>
+      <label>Account</label><br>
+      <select name="account">
+        {% for a in ["A1001","A1002","A1003","A1004","A1005"] %}
+        <option value="{{a}}" {% if a==account %}selected{% endif %}>{{a}}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Amount</label><br>
+      <input type="number" name="amount" value="{{amount}}">
+    </div>
+    <div>
+      <label>Requests (N)</label><br>
+      <input type="number" name="n" value="{{n}}">
+    </div>
+  </div>
+  <br>
+  <button type="submit">Run Stress Test</button>
 </form>
+</div>
 {% if summary %}
-<div class="card"><pre>results: {{ summary }}</pre></div>
+<div class="card">
+  <h3>Results</h3>
+  <pre>{{ summary }}</pre>
+</div>
 {% endif %}
-
 {% endblock %}

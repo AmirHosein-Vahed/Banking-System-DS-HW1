@@ -1,14 +1,115 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Banking Web</title>
 <style>
-body { font-family: system-ui, sans-serif; margin: 2rem; }
-nav a { margin-right: 1rem; }
-.card { border: 1px solid #ddd; padding: 1rem; margin: 1rem 0; border-radius: 8px; }
-input, select, button { padding: .4rem; margin: .2rem 0; }
-pre { background:#f6f6f6; padding:1rem; overflow:auto; }
+:root {
+  --bg: #0b1020;
+  --bg2: #121933;
+  --card: rgba(255,255,255,0.06);
+  --card-border: rgba(255,255,255,0.10);
+  --text: #eaf1ff;
+  --muted: #a9b7d6;
+  --accent: #6ee7ff;
+  --accent2: #8b5cf6;
+  --success: #34d399;
+  --danger: #fb7185;
+  --shadow: 0 10px 40px rgba(0,0,0,0.35);
+  --radius: 16px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text);
+  background: radial-gradient(1200px 600px at 10% 10%, #1a2b55, transparent),
+             radial-gradient(900px 500px at 90% 20%, #311a55, transparent),
+             linear-gradient(160deg, var(--bg), var(--bg2));
+}
+nav {
+  display: flex;
+  gap: .75rem;
+  padding: 1rem 1.25rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+  background: rgba(11,16,32,0.55);
+  border-bottom: 1px solid var(--card-border);
+}
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: .5rem .8rem;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: .2s;
+}
+nav a:hover {
+  color: white;
+  background: linear-gradient(90deg, rgba(110,231,255,.15), rgba(139,92,246,.15));
+}
+.wrap { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+h1 { font-size: 2rem; margin-bottom: .5rem; }
+.subtitle { color: var(--muted); margin-bottom: 1.5rem; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+  margin: 1rem 0;
+}
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 1rem; }
+.stat {
+  background: linear-gradient(135deg, rgba(110,231,255,.12), rgba(139,92,246,.12));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.stat small { color: var(--muted); }
+.stat strong { font-size: 1.6rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: .75rem; text-align: left; border-bottom: 1px solid var(--card-border); }
+th { color: var(--muted); font-weight: 600; }
+input, select, button {
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: .6rem .75rem;
+  outline: none;
+}
+button {
+  cursor: pointer;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  color: #0b1020;
+  font-weight: 700;
+  border: none;
+  transition: transform .12s ease;
+}
+button:hover { transform: translateY(-1px); }
+pre {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1rem;
+  overflow: auto;
+  color: var(--text);
+}
+.badge {
+  display: inline-block; padding: .25rem .6rem; border-radius: 999px; font-size: .8rem; font-weight: 700;
+}
+.badge.success { background: rgba(52,211,153,.2); color: var(--success); }
+.badge.danger { background: rgba(251,113,133,.2); color: var(--danger); }
+@media (max-width: 700px) {
+  .wrap { margin: 1rem; }
+  h1 { font-size: 1.5rem; }
+}
 </style>
 </head>
 <body>
@@ -19,7 +120,10 @@ pre { background:#f6f6f6; padding:1rem; overflow:auto; }
 <a href="/logs">Logs</a>
 <a href="/cluster">Cluster</a>
 </nav>
-<hr>
+<div class="wrap">
 {% block content %}{% endblock %}
+</div>
 </body>
 </html>
+EOF
+echo updated
