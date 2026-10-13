@@ -1,48 +1,54 @@
 # Mini Banking Transaction Server
 
-Python TCP banking server/client for the DS Assignment 1 brief.
+Simulated client–server banking system for DS Assignment 1. Python, TCP sockets, newline-delimited JSON, SQLite (WAL, fsync) for durability.
 
-## Run single server
+## Features
+- Ops: `balance`, `deposit`, `withdraw` (plus cluster replication)
+- Configurable max simultaneous clients
+- Per-account locks + SQLite transactions (serializable writes, non-negative balances)
+- Meaningful errors, JSON-line logging with request ID/IP/action/account/timestamp/result/latency
+- Optional fault-tolerant cluster (`--cluster`) and arbiter/witness for split-brain prevention
 
+## Quick start (single server)
 ```bash
 cp banking.conf.example banking.conf
 python3 server.py --config banking.conf
-```
-
-Client (another VM/terminal):
-
-```bash
 python3 client.py --host <server-ip> --port 5000
 ```
 
-Interactive commands:
-
+Commands:
 ```text
 balance A1001
 deposit A1001 100
 withdraw A1001 50
 ```
 
-Stress test:
-
+Stress:
 ```bash
 python3 client.py --host <server-ip> --port 5000 --stress 50
 ```
 
 ## Tests
-
 ```bash
 python3 -m unittest tests.test_core -v
+python3 -m unittest tests.test_cluster -v
 ```
 
-## Cluster / fault-tolerant mode (bonus)
+## Error cases
+Unknown account, insufficient funds, negative/zero/non-numeric amount, unsupported action, missing fields, malformed JSON/random bytes. Server stays running.
 
+## ACID demos
+- Concurrency: 50 threads withdraw from the same account; final balance is correct, no negatives.
+- Half-failed request leaves account unchanged.
+- Kill/restart server; committed balances persist (SQLite WAL).
+
+## Cluster mode (+fault tolerance)
 ```bash
-# Server A
+# Server A (primary)
 python3 server.py --config banking.conf --cluster --role primary --node-id A \
   --repl-port 6000 --peers <B-ip>:6000 --arbiter <witness-ip>:8000
 
-# Server B
+# Server B (backup)
 python3 server.py --config banking.conf --cluster --role backup --node-id B \
   --repl-port 6000 --peers <A-ip>:6000 --arbiter <witness-ip>:8000
 
@@ -51,10 +57,57 @@ python3 arbiter.py --host 0.0.0.0 --port 8000
 ```
 
 Client failover:
-
 ```bash
 python3 client.py --servers <A-ip>:5000,<B-ip>:5000
 ```
 
-## Deployment
-Client and server must run on separate VMs (e.g. LXD VMs with `--vm`). Use each server VM’s real bridge IP, not `localhost`.
+## LXD deployment (VMs)
+Install and init LXD:
+```bash
+sudo snap install lxd
+sudo lxd init
+```
+
+Create VMs:
+```bash
+lxc launch ubuntu:22.04 server-a --vm
+lxc launch ubuntu:22.04 server-b --vm
+lxc launch ubuntu:22.04 client1  --vm
+lxc launch ubuntu:22.04 witness  --vm
+lxc list
+```
+
+Provision each VM:
+```bash
+lxc exec server-a -- bash -c 'apt update && apt install -y python3 python3-pip git'
+```
+
+Copy code:
+```bash
+lxc file push -r . server-a/opt/banking
+```
+
+Create static IP (example):
+```bash
+lxc config device override server-a eth0 ipv4.address=10.0.0.10
+```
+
+Snapshots:
+```bash
+lxc snapshot server-a baseline
+lxc restore server-a baseline
+```
+
+Failure injection:
+```bash
+# crash primary
+lxc exec server-a -- pkill -f server.py
+# network partition example (inside VM or host tc/iptables)
+```
+
+Collect logs:
+```bash
+lxc file pull server-a/opt/banking/logs/server.log ./server-a.log
+```
+
+Always use real VM IPs (never `localhost`) for client connections.
