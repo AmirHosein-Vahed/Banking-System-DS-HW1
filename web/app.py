@@ -55,7 +55,7 @@ def dashboard(request: Request):
             balances[a] = resp.get("balance")
         except Exception as e:
             balances[a] = "err"
-    return templates.TemplateResponse("index.html", {"request": request, "balances": balances, "servers": SERVERS})
+    return templates.TemplateResponse(request, "index.html", {"balances": balances, "servers": SERVERS})
 
 @app.post("/ops")
 def ops(request: Request, action: str = Form(...), account: str = Form(...), amount: int = Form(0), server: str = Form(None)):
@@ -65,11 +65,11 @@ def ops(request: Request, action: str = Form(...), account: str = Form(...), amo
         resp = tcp_request(target, req)
     except Exception as e:
         resp = {"status": "error", "code": "CONNECT_ERROR", "message": str(e)}
-    return templates.TemplateResponse("ops.html", {"request": request, "resp": resp, "servers": SERVERS, "default_server": target})
+    return templates.TemplateResponse(request, "ops.html", {"resp": resp, "servers": SERVERS, "default_server": target})
 
 @app.get("/ops", response_class=HTMLResponse)
 def ops_form(request: Request):
-    return templates.TemplateResponse("ops.html", {"request": request, "resp": None, "servers": SERVERS, "default_server": primary()})
+    return templates.TemplateResponse(request, "ops.html", {"resp": None, "servers": SERVERS, "default_server": primary()})
 
 @app.post("/stress")
 def stress(request: Request, n: int = Form(10), amount: int = Form(10), account: str = Form("A1001"), server: str = Form(None)):
@@ -87,11 +87,11 @@ def stress(request: Request, n: int = Form(10), amount: int = Form(10), account:
         for f in concurrent.futures.as_completed(futs):
             results.append(f.result())
     summary = {s: results.count(s) for s in set(results)}
-    return templates.TemplateResponse("stress.html", {"request": request, "summary": summary, "n": n, "account": account, "amount": amount, "servers": SERVERS})
+    return templates.TemplateResponse(request, "stress.html", {"summary": summary, "n": n, "account": account, "amount": amount, "servers": SERVERS})
 
 @app.get("/stress", response_class=HTMLResponse)
 def stress_form(request: Request):
-    return templates.TemplateResponse("stress.html", {"request": request, "summary": None, "n": 10, "account": "A1001", "amount": 10, "servers": SERVERS})
+    return templates.TemplateResponse(request, "stress.html", {"summary": None, "n": 10, "account": "A1001", "amount": 10, "servers": SERVERS})
 
 @app.get("/logs", response_class=HTMLResponse)
 def logs(request: Request, node: str = None):
@@ -103,7 +103,7 @@ def logs(request: Request, node: str = None):
             lines = f.readlines()[-100:]
     except Exception:
         lines = []
-    return templates.TemplateResponse("logs.html", {"request": request, "lines": lines})
+    return templates.TemplateResponse(request, "logs.html", {"lines": lines})
 
 @app.get("/cluster", response_class=HTMLResponse)
 def cluster(request: Request):
@@ -115,7 +115,7 @@ def cluster(request: Request):
             info[srv] = {"reachable": True, "sample_balance": r.get("balance")}
         except Exception as e:
             info[srv] = {"reachable": False, "error": str(e)}
-    return templates.TemplateResponse("cluster.html", {"request": request, "info": info, "servers": SERVERS})
+    return templates.TemplateResponse(request, "cluster.html", {"info": info, "servers": SERVERS})
 
 if __name__ == "__main__":
     import uvicorn
