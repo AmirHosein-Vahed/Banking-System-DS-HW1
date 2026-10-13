@@ -111,3 +111,18 @@ lxc file pull server-a/opt/banking/logs/server.log ./server-a.log
 ```
 
 Always use real VM IPs (never `localhost`) for client connections.
+
+## Project files
+- `server.py` — threaded TCP server, request handling, concurrency cap, role checks
+- `client.py` — interactive client, `--stress` load generator, failover list
+- `storage.py` — SQLite persistence, schema, seed accounts, transactional apply, idempotency
+- `accounts.py` — per-account lock manager and account service
+- `protocol.py` — request parsing/validation and response builders
+- `logger.py` — JSON-line request/response logging
+- `cluster.py` — replication, heartbeat promotion, sync scaffolding
+- `arbiter.py` — witness node for quorum decisions
+- `banking.conf.example` — sample server configuration
+- `requirements.txt` — dependency/runtime notes
+- `tests/test_core.py` — core, durability, and error tests
+- `tests/test_cluster.py` — replication and failover smoke test
+- `AGENTS.md` — repository guidance for coding agents
