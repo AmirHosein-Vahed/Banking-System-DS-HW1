@@ -126,3 +126,15 @@ Always use real VM IPs (never `localhost`) for client connections.
 - `tests/test_core.py` — core, durability, and error tests
 - `tests/test_cluster.py` — replication and failover smoke test
 - `AGENTS.md` — repository guidance for coding agents
+
+## Web frontend (FastAPI)
+Install with `uv`:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
+uv venv .venv
+uv pip install -r web/requirements.txt
+source .venv/bin/activate
+BANK_SERVERS=127.0.0.1:5000 uvicorn web.app:app --host 0.0.0.0 --port 8080
+```
+Open `http://<vm-ip>:8080`.
