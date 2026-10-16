@@ -231,3 +231,28 @@ Stop everything:
 The project is organized into small commits for config, core storage, protocol/logging, server, client, tests, cluster, and documentation.
 EOF
 echo written
+## Troubleshooting
+
+### "502 Bad Gateway" when opening the web UI
+This is usually an HTTP proxy on the host/browser intercepting the request to the LXD bridge subnet,
+not a problem with the app. Bypass the proxy for the LXD network:
+
+```bash
+export no_proxy=localhost,127.0.0.1,10.187.220.0/24
+export NO_PROXY=localhost,127.0.0.1,10.187.220.0/24
+curl --noproxy '*' http://10.187.220.20:8080/
+```
+
+In a browser, add the LXD subnet (for example `10.187.220.0/24`) to the proxy bypass list.
+
+### Web UI does not start
+Check status and logs inside the client VM:
+```bash
+lxc exec client1 -- systemctl status banking-web --no-pager
+lxc exec client1 -- journalctl -u banking-web -n 50 --no-pager
+```
+
+If dependencies are missing, reinstall:
+```bash
+lxc exec client1 -- bash -c 'cd /opt/banking && rm -rf .venv && uv venv .venv && uv pip install -r web/requirements.txt'
+```
