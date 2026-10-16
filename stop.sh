@@ -3,6 +3,7 @@ set -euo pipefail
 
 for vm in server-a server-b client1 witness; do
   if lxc info "$vm" >/dev/null 2>&1; then
+    lxc exec "$vm" -- systemctl stop banking-server banking-arbiter banking-web 2>/dev/null || true
     lxc exec "$vm" -- pkill -f 'server.py' 2>/dev/null || true
     lxc exec "$vm" -- pkill -f 'arbiter.py' 2>/dev/null || true
     lxc exec "$vm" -- pkill -f 'uvicorn web.app:app' 2>/dev/null || true
