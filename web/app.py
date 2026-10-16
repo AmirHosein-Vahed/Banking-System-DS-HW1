@@ -93,17 +93,36 @@ def stress(request: Request, n: int = Form(10), amount: int = Form(10), account:
 def stress_form(request: Request):
     return templates.TemplateResponse(request, "stress.html", {"summary": None, "n": 10, "account": "A1001", "amount": 10, "servers": SERVERS})
 
+def log_urls():
+    explicit = os.environ.get("BANK_LOG_URLS")
+    if explicit:
+        return [u.strip() for u in explicit.split(",") if u.strip()]
+    urls = []
+    for srv in SERVERS:
+        host = srv.rsplit(":", 1)[0]
+        urls.append(f"http://{host}:9000/logs")
+    return urls
+
 @app.get("/logs", response_class=HTMLResponse)
 def logs(request: Request, node: str = None):
-    # node maps to a remote log path via environment; for local dev read file if present
-    lines = []
-    log_path = os.environ.get("BANK_LOG_PATH", "logs/server.log")
-    try:
-        with open(log_path) as f:
-            lines = f.readlines()[-100:]
-    except Exception:
-        lines = []
-    return templates.TemplateResponse(request, "logs.html", {"lines": lines})
+    import urllib.request
+    sections = []
+    for url in log_urls():
+        try:
+            with urllib.request.urlopen(url, timeout=3) as r:
+                text = r.read().decode(errors="replace")
+            sections.append((url, text.splitlines()[-200:]))
+        except Exception as e:
+            sections.append((url, [f"unreachable: {e}"]))
+    # fallback to a local file only if nothing remote is configured/available
+    if not sections:
+        try:
+            with open(os.environ.get("BANK_LOG_PATH", "logs/server.log"), errors="replace") as f:
+                sections.append(("local", f.readlines()[-200:]))
+        except Exception:
+            sections.append(("local", ["no logs available"]))
+    return templates.TemplateResponse(request, "logs.html", {"sections": sections})
+
 
 @app.get("/cluster", response_class=HTMLResponse)
 def cluster(request: Request):

@@ -28,15 +28,18 @@ A simulated client–server banking system built for the DS Assignment 1 brief. 
 | `web/app.py` | FastAPI application and routes |
 | `web/templates/` | Jinja2 HTML templates |
 | `web/requirements.txt` | Python dependencies for the web UI |
+| `logserver.py` | Exposes each node's JSON request log over HTTP for the web `/logs` page |
 | `banking.conf.example` | Sample configuration |
 | `requirements.txt` | Core runtime/dependency notes |
 | `tests/test_core.py` | Core, durability, and error tests |
 | `tests/test_concurrency.py` | Concurrency and malformed-request tests |
 | `tests/test_protocol.py` | Protocol validation tests |
 | `tests/test_cluster.py` | Replication and failover smoke test |
+| `tests/test_logserver.py` | Log server startup/serving tests |
 | `tests/test_web_ui.py` | Web UI integration tests |
 | `run.sh` | End-to-end LXD bootstrap and launch script |
 | `stop.sh` | Stop services and VMs |
+| `do_tests.sh` | Run the full test suite |
 | `AGENTS.md` | Repository notes for coding agents |
 
 ## Requirements
@@ -105,8 +108,15 @@ Pages:
 
 ## Running Tests
 
+Run everything (core + web UI) with one command:
 ```bash
-python3 -m unittest tests.test_core tests.test_concurrency tests.test_protocol tests.test_cluster -v
+./do_tests.sh
+```
+
+Or invoke the modules directly:
+
+```bash
+python3 -m unittest tests.test_core tests.test_concurrency tests.test_protocol tests.test_cluster tests.test_logserver -v
 .venv/bin/python -m unittest tests.test_web_ui -v
 ```
 
@@ -269,8 +279,8 @@ done
 
 ### 6. Open firewall ports
 ```bash
-lxc exec server-a -- bash -c 'ufw allow 5000/tcp; ufw allow 6000/tcp; ufw allow 8000/tcp'
-lxc exec server-b -- bash -c 'ufw allow 5000/tcp; ufw allow 6000/tcp; ufw allow 8000/tcp'
+lxc exec server-a -- bash -c 'ufw allow 5000/tcp; ufw allow 6000/tcp; ufw allow 8000/tcp; ufw allow 9000/tcp'
+lxc exec server-b -- bash -c 'ufw allow 5000/tcp; ufw allow 6000/tcp; ufw allow 8000/tcp; ufw allow 9000/tcp'
 lxc exec witness -- bash -c 'ufw allow 8000/tcp'
 ```
 
@@ -279,6 +289,9 @@ lxc exec witness -- bash -c 'ufw allow 8000/tcp'
 lxc exec server-a -- bash -c 'cd /opt/banking && cp banking.conf.example banking.conf && python3 server.py --config banking.conf &'
 lxc exec server-b -- bash -c 'cd /opt/banking && cp banking.conf.example banking.conf && python3 server.py --config banking.conf &'
 lxc exec witness -- bash -c 'cd /opt/banking && python3 arbiter.py --host 0.0.0.0 --port 8000 &'
+# log servers, one per banking node, so the web /logs page can read their logs
+lxc exec server-a -- bash -c 'cd /opt/banking && python3 logserver.py --host 0.0.0.0 --port 9000 --log /opt/banking/logs/server.log &'
+lxc exec server-b -- bash -c 'cd /opt/banking && python3 logserver.py --host 0.0.0.0 --port 9000 --log /opt/banking/logs/server.log &'
 ```
 
 ### 8. Run client
@@ -348,3 +361,17 @@ If dependencies are missing, reinstall:
 ```bash
 lxc exec client1 -- bash -c 'cd /opt/banking && rm -rf .venv && uv venv .venv && uv pip install -r web/requirements.txt'
 ```
+
+### Logs page is empty or shows "unreachable"
+The `/logs` page reads each banking node's JSON log from its log server on port `9000`
+(configured via `BANK_LOG_URLS`, otherwise derived from `BANK_SERVERS` host + `:9000`).
+If every section says `unreachable`, the log servers are not running or not reachable:
+
+```bash
+lxc exec server-a -- systemctl status banking-log --no-pager
+lxc exec server-a -- journalctl -u banking-log -n 30 --no-pager
+lxc exec server-a -- bash -c 'curl -fsS http://127.0.0.1:9000/logs | tail'
+```
+
+Check that port `9000` is allowed in `ufw` on both server VMs and that the log path the log
+server reads (`/opt/banking/logs/server.log`) matches `log_path` in `banking.conf`.

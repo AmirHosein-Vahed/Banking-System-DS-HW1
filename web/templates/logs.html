@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Logs</h1>
-<p class="subtitle">Last 100 log lines.</p>
+<p class="subtitle">Recent request/response logs from each banking server (last 200 lines).</p>
+{% for url, lines in sections %}
 <div class="card">
-  <pre>{% for l in lines %}{{l}}{% endfor %}</pre>
+  <h3>{{ url }}</h3>
+  <pre>{% for l in lines %}{{ l }}
+{% endfor %}</pre>
 </div>
+{% endfor %}
 {% endblock %}

@@ -12,6 +12,7 @@ IP_WITNESS="${IP_WITNESS:-${BRIDGE_SUBNET}.30}"
 CLUSTER="${CLUSTER:-0}"
 WEB_PORT="${WEB_PORT:-8080}"
 BANK_PORT="${BANK_PORT:-5000}"
+LOG_PORT="${LOG_PORT:-9000}"
 
 VM_A="server-a"
 VM_B="server-b"
@@ -82,13 +83,13 @@ for vm in "$VM_A" "$VM_B" "$VM_CLIENT" "$VM_WITNESS"; do
 done
 
 # firewall
-lxc exec "$VM_A" -- bash -c 'ufw allow 5000/tcp; ufw allow 6000/tcp; ufw allow 7000/tcp; ufw allow 8000/tcp' 2>/dev/null || true
-lxc exec "$VM_B" -- bash -c 'ufw allow 5000/tcp; ufw allow 6000/tcp; ufw allow 7000/tcp; ufw allow 8000/tcp' 2>/dev/null || true
+lxc exec "$VM_A" -- bash -c 'ufw allow 5000/tcp; ufw allow 6000/tcp; ufw allow 7000/tcp; ufw allow 8000/tcp; ufw allow 9000/tcp' 2>/dev/null || true
+lxc exec "$VM_B" -- bash -c 'ufw allow 5000/tcp; ufw allow 6000/tcp; ufw allow 7000/tcp; ufw allow 8000/tcp; ufw allow 9000/tcp' 2>/dev/null || true
 lxc exec "$VM_WITNESS" -- bash -c 'ufw allow 8000/tcp' 2>/dev/null || true
 
 # stop old service processes / units
 for vm in "$VM_A" "$VM_B"; do
-  lxc exec "$vm" -- bash -c 'systemctl stop banking-server 2>/dev/null; systemctl reset-failed banking-server 2>/dev/null; pkill -f server.py 2>/dev/null' || true
+  lxc exec "$vm" -- bash -c 'systemctl stop banking-server banking-log 2>/dev/null; systemctl reset-failed banking-server banking-log 2>/dev/null; pkill -f server.py 2>/dev/null; pkill -f logserver.py 2>/dev/null' || true
 done
 lxc exec "$VM_WITNESS" -- bash -c 'systemctl stop banking-arbiter 2>/dev/null; systemctl reset-failed banking-arbiter 2>/dev/null; pkill -f arbiter.py 2>/dev/null' || true
 lxc exec "$VM_CLIENT" -- bash -c 'systemctl stop banking-web 2>/dev/null; systemctl reset-failed banking-web 2>/dev/null; pkill -f "uvicorn web.app:app" 2>/dev/null' || true
@@ -113,6 +114,13 @@ else
 fi
 
 lxc exec "$VM_WITNESS" -- systemd-run --unit=banking-arbiter --collect --property=WorkingDirectory=/opt/banking python3 arbiter.py --host 0.0.0.0 --port 8000
+
+# log servers: serve each node's JSON request log over HTTP so the web /logs page can read it
+info "starting log servers on $VM_A and $VM_B (port ${LOG_PORT})"
+for vm in "$VM_A" "$VM_B"; do
+  lxc exec "$vm" -- systemd-run --unit=banking-log --collect --property=WorkingDirectory=/opt/banking \
+    python3 logserver.py --host 0.0.0.0 --port "${LOG_PORT}" --log /opt/banking/logs/server.log
+done
 
 # web frontend (install deps only if missing/broken)
 info "preparing web frontend on $VM_CLIENT"
@@ -150,11 +158,24 @@ PY"; then
   exit 1
 fi
 
+for vm in "$VM_A" "$VM_B"; do
+  if ! lxc exec "$vm" -- bash -c "python3 - <<'PY'
+import socket,sys
+s=socket.socket(); s.settimeout(2)
+sys.exit(0 if s.connect_ex(('127.0.0.1',${LOG_PORT}))==0 else 1)
+PY"; then
+    echo "[run.sh] LOG SERVER HEALTH CHECK FAILED on $vm. Last log lines:"
+    lxc exec "$vm" -- journalctl -u banking-log -n 40 --no-pager || true
+    exit 1
+  fi
+done
+
 echo ""
 echo "Deployment is running."
 echo "Bank primary: http://${IP_A}:${BANK_PORT}"
 echo "Bank backup:  http://${IP_B}:${BANK_PORT}"
 echo "Web UI:       http://${IP_CLIENT}:${WEB_PORT}"
+echo "Logs:         http://${IP_A}:${LOG_PORT}/logs , http://${IP_B}:${LOG_PORT}/logs"
 echo ""
 echo "NOTE: if you use an HTTP proxy, bypass it for the LXD subnet (${BRIDGE_SUBNET}.0/24),"
 echo "      otherwise browsers/curl may show '502 Bad Gateway'."
