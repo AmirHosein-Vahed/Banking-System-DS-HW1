@@ -110,29 +110,87 @@ python3 -m unittest tests.test_core tests.test_concurrency tests.test_protocol t
 .venv/bin/python -m unittest tests.test_web_ui -v
 ```
 
-## Cluster and Bonus Mode
+## Fault-Tolerant Mode (Bonus)
 
-### Server A (primary)
+This is the optional bonus part. It turns the single server into a primary/backup cluster so the
+service keeps running when the primary dies, without losing or duplicating transactions.
+
+### Topology
+- **Server A** — primary; serves all client traffic
+- **Server B** — backup; receives the replicated transaction stream
+- **Witness** — `arbiter.py`; breaks ties / provides quorum so the backup does not self-promote during a partition
+- **Clients** — connect to whichever node is currently primary (web UI receives both in `BANK_SERVERS`)
+
+### Start manually
+Server A (primary):
 ```bash
 python3 server.py --config banking.conf --cluster --role primary --node-id A \
   --repl-port 6000 --peers <B-ip>:6000 --arbiter <witness-ip>:8000
 ```
 
-### Server B (backup)
+Server B (backup):
 ```bash
 python3 server.py --config banking.conf --cluster --role backup --node-id B \
   --repl-port 6000 --peers <A-ip>:6000 --arbiter <witness-ip>:8000
 ```
 
-### Witness
+Witness:
 ```bash
 python3 arbiter.py --host 0.0.0.0 --port 8000
 ```
 
-### Client with failover
+Client with failover list:
 ```bash
 python3 client.py --servers <A-ip>:5000,<B-ip>:5000
 ```
+
+Or start the whole thing on LXD:
+```bash
+CLUSTER=1 ./run.sh
+```
+
+### How it works
+- Every write on the primary is committed locally, then replicated to the backup, and only after
+  the backup acknowledges is `success` returned to the client (synchronous replication).
+- The primary sends periodic heartbeats to the backup and the witness.
+- Each transaction carries a `req_id`; `storage.apply` is idempotent, so a replayed or retried
+  request never applies twice.
+- If the primary stops heartbeating for about 5 seconds **and the witness is reachable**, the
+  backup promotes itself to primary and begins serving clients.
+- If the witness is unreachable, the backup refuses to promote. That is the split-brain guard:
+  during a real network partition only the side that can still reach a majority may serve writes.
+
+### Demo flow
+```bash
+CLUSTER=1 ./run.sh
+
+# traffic
+lxc exec client1 -- bash -c 'cd /opt/banking && python3 client.py --host 10.187.220.10 --port 5000'
+
+# kill the primary
+lxc exec server-a -- pkill -f server.py
+
+# watch the backup take over
+lxc exec server-b -- journalctl -u banking-server -n 30 --no-pager
+curl --noproxy '*' http://10.187.220.20:8080/cluster
+```
+
+### Network partition / split brain
+Cut the link between the servers while both keep running:
+```bash
+lxc exec server-a -- bash -c 'iptables -A INPUT -s 10.187.220.11 -j DROP; iptables -A OUTPUT -d 10.187.220.11 -j DROP'
+
+# restore
+lxc exec server-a -- bash -c 'iptables -F'
+```
+During the split the minority side must not accept writes; after the link returns, the backup
+resynchronizes from the primary. See `cluster.py` for replication, promotion, and sync logic.
+
+### Notes
+- This mode is opt-in: without `CLUSTER=1` (or the `--cluster` flag) only the plain single-server code runs.
+- The backup intentionally rejects client operations with `NOT_PRIMARY` until it is promoted, so
+  you will not see mirrored reads on Server B before failover.
+- The witness is required for promotion; without it the cluster stays safe but will not fail over.
 
 ## LXD VM Deployment
 
