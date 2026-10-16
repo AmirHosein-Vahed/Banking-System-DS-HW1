@@ -160,6 +160,40 @@ CLUSTER=1 ./run.sh
 - If the witness is unreachable, the backup refuses to promote. That is the split-brain guard:
   during a real network partition only the side that can still reach a majority may serve writes.
 
+### Algorithms and Mechanisms Used
+- **Synchronous primary–backup replication** (passive / state-machine replication): the primary
+  serializes writes and forwards each transaction to the backup, waiting for an `ack` before
+  replying. `cluster.replicate()` in `cluster.py`.
+- **Timeout-based failure detector**: the primary sends a heartbeat every 1s; the backup treats the
+  primary as failed after a 5s timeout (`_heartbeat` / `_monitor`).
+- **Leader election via timeout + witness reachability (quorum check)**: the backup promotes only
+  when the primary is timed out **and** the arbiter is reachable. The witness acts as a tie-breaker
+  for the 3-node set, which is what prevents split brain. A `term` field is carried in heartbeats but
+  is not used for formal voting or fencing.
+- **Idempotency for exactly-once effects**: every request has a `req_id`; `storage.apply()` records
+  applied transactions and safely ignores replays, preventing double application across retries or
+  failover.
+- **Full-state snapshot sync (state transfer)**: `sync_request` / `snapshot` / `sync_apply` copy all
+  balances to a lagging node. There is no incremental log-based catch-up.
+- **Durability before acknowledgment**: SQLite in WAL mode with `synchronous=FULL` commits to disk
+  before a success response is sent (`storage.py`).
+
+### What Is Not Implemented (Limitations)
+This is deliberately a small custom scheme, **not** a consensus algorithm such as Raft or Paxos.
+- No persistent replication log, log indexes, term-based voting (`RequestVote` / `AppendEntries`),
+  or fencing tokens.
+- No automatic catch-up on reconnect: `request_sync_from_peer()` exists but is not wired into
+  startup or promotion.
+- A revived old primary is not forced to step down through a formal protocol.
+- Replication is **fail-open**: if the backup is unreachable, the primary logs `replication_failed`
+  and still returns success, so cluster-wide durability is not guaranteed in that case.
+- The arbiter is a plain TCP responder, not a stateful membership service.
+- The correct way to describe this in the report: **primary–backup replication with heartbeat
+  failure detection and witness-based quorum promotion**, not distributed consensus.
+
+All of this lives in `cluster.py` (replication, heartbeat, promotion, sync) and `arbiter.py`
+(witness), and is only active with `--cluster` / `CLUSTER=1`.
+
 ### Demo flow
 ```bash
 CLUSTER=1 ./run.sh
