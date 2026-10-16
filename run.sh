@@ -24,7 +24,7 @@ ensure_vm() {
   local name="$1"
   if ! lxc info "$name" >/dev/null 2>&1; then
     info "launching $name"
-    lxc launch ubuntu:22.04 "$name" --vm
+    lxc launch ubuntu:24.04 "$name" --vm
   else
     lxc start "$name" 2>/dev/null || true
   fi

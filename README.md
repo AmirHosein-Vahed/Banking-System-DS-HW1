@@ -144,10 +144,10 @@ sudo lxd init
 
 ### 2. Launch VMs
 ```bash
-lxc launch ubuntu:22.04 server-a --vm
-lxc launch ubuntu:22.04 server-b --vm
-lxc launch ubuntu:22.04 client1 --vm
-lxc launch ubuntu:22.04 witness --vm
+lxc launch ubuntu:24.04 server-a --vm
+lxc launch ubuntu:24.04 server-b --vm
+lxc launch ubuntu:24.04 client1 --vm
+lxc launch ubuntu:24.04 witness --vm
 lxc list
 ```
 
